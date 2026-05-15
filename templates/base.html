@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>{% block title %}PhishGuard{% endblock %}</title>
+</head>
+<body>
+  <p>
+    <a href="{{ url_for('index') }}">Dashboard</a> |
+    <a href="{{ url_for('campaigns') }}">Campaigns</a> |
+    <a href="{{ url_for('scenarios') }}">Scenarios</a> |
+    <a href="{{ url_for('users') }}">Users</a> |
+    <a href="{{ url_for('departments') }}">Departments</a>
+  </p>
+  <hr>
+  {% with messages = get_flashed_messages() %}
+    {% for msg in messages %}
+      <p><strong>{{ msg }}</strong></p>
+    {% endfor %}
+  {% endwith %}
+  {% block content %}{% endblock %}
+</body>
+</html>

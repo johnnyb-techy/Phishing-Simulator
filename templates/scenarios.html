@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Scenarios & AI Generator{% endblock %}
+{% block content %}
+<h1>Scenarios & AI Generator</h1>
+
+<div style="border: 1px solid #ccc; padding: 20px; margin-bottom: 30px; background-color: #f9f9f9;">
+  <h2>Generate New AI Scenario</h2>
+  <form method="post">
+    <p><strong>Select Scenario Type:</strong></p>
+    <label>
+      <input type="radio" name="scenario_type" value="Credential Harvest (e.g., Fake IT Password Reset)" required> 
+      Credential Harvest (Fake IT Password Reset)
+    </label><br><br>
+    
+    <label>
+      <input type="radio" name="scenario_type" value="Business Email Compromise (e.g., CEO asking for Urgent Wire Transfer)"> 
+      Business Email Compromise (Urgent Wire Transfer)
+    </label><br><br>
+    
+    <button type="submit" style="padding: 10px; background-color: #0056b3; color: white; border: none; cursor: pointer;">
+      Generate Safe Phishing Email
+    </button>
+  </form>
+
+  {% if generated_email %}
+    <hr>
+    <h3>AI Output (Saved to Database):</h3>
+    <pre style="background: #e8f4f8; padding: 15px; border-left: 4px solid #0056b3; white-space: pre-wrap;">{{ generated_email }}</pre>
+  {% endif %}
+</div>
+
+<h2>Existing Database Scenarios</h2>
+<table border="1" cellpadding="8" style="border-collapse: collapse; width: 100%;">
+  <tr style="background-color: #eee;">
+    <th>ID</th>
+    <th>Title</th>
+    <th>Type</th>
+    <th>Difficulty</th>
+  </tr>
+  {% for s in scenarios %}
+  <tr>
+    <td>{{ s.id }}</td>
+    <td>{{ s.title }}</td>
+    <td>{{ s.attack_type }}</td>
+    <td>{{ s.difficulty }}</td>
+  </tr>
+  {% else %}
+  <tr><td colspan="4">No scenarios in database.</td></tr>
+  {% endfor %}
+</table>
+{% endblock %}

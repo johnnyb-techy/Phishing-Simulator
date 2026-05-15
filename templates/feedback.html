@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Simulator Feedback{% endblock %}
+{% block content %}
+<div style="text-align: center; margin-top: 50px;">
+    <h1>Simulator Feedback</h1>
+    
+    {% if correct %}
+        <h2 style="color: #28a745;">Great Job!</h2>
+        <p>You correctly identified the email. Spotting these threats keeps the organisation safe.</p>
+    {% else %}
+        <h2 style="color: #dc3545;">Oops, you were caught!</h2>
+        <p>You selected <strong>{{ action }}</strong>, but that was a simulated phishing attack. Always double-check the sender's email address and be wary of urgent demands!</p>
+    {% endif %}
+    
+    <div style="margin-top: 40px;">
+        <a href="{{ url_for('train') }}">
+            <button style="padding: 10px 20px; font-size: 16px; background-color: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; margin-right: 15px;">
+                Try Another Scenario
+            </button>
+        </a>
+        <a href="{{ url_for('index') }}" style="font-size: 16px; color: #555; text-decoration: none;">
+            End Training (Return to Dashboard)
+        </a>
+    </div>
+</div>
+{% endblock %}

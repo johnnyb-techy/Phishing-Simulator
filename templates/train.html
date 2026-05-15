@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Phishing Simulator{% endblock %}
+{% block content %}
+<div style="text-align: center; margin-top: 50px;">
+    <h1>Phishing Simulator</h1>
+    
+    <div style="width: 60%; margin: 0 auto; background-color: #f4f4f4; padding: 30px; border: 1px solid #ccc; border-radius: 8px; text-align: left;">
+        <p><strong>From:</strong> {{ scenario.sender_name }} &lt;{{ scenario.sender_email }}&gt;</p>
+        <p><strong>Subject:</strong> {{ scenario.email_subject }}</p>
+        <hr>
+        <pre style="white-space: pre-wrap; font-family: Arial, sans-serif;">{{ scenario.email_body }}</pre>
+    </div>
+
+    <div style="margin-top: 30px;">
+        <form method="post" style="display: inline-block; margin-right: 20px;">
+            <input type="hidden" name="scenario_id" value="{{ scenario.id }}">
+            <input type="hidden" name="action" value="phishing">
+            <button type="submit" style="background-color: #dc3545; color: white; padding: 15px 30px; font-size: 18px; border: none; border-radius: 5px; cursor: pointer;">
+                Phishing
+            </button>
+        </form>
+
+        <form method="post" style="display: inline-block;">
+            <input type="hidden" name="scenario_id" value="{{ scenario.id }}">
+            <input type="hidden" name="action" value="safe">
+            <button type="submit" style="background-color: #28a745; color: white; padding: 15px 30px; font-size: 18px; border: none; border-radius: 5px; cursor: pointer;">
+                Safe
+            </button>
+        </form>
+    </div>
+</div>
+{% endblock %}

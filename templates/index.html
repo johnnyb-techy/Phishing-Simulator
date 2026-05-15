@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+<h1>Dashboard</h1>
+
+<div style="margin-bottom: 30px;">
+    <a href="{{ url_for('train') }}">
+        <button style="padding: 15px 25px; font-size: 20px; background-color: #28a745; color: white; border: none; border-radius: 5px; cursor: pointer;">
+            ▶ Start Phishing Simulator
+        </button>
+    </a>
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px;">
+    <div style="border: 1px solid #ccc; padding: 15px; border-radius: 5px;">
+        <h3>System Overview</h3>
+        <ul style="list-style: none; padding: 0;">
+            <li>Total Users: {{ stats.users }}</li>
+            <li>Campaigns: {{ stats.campaigns }}</li>
+            <li>Scenarios: {{ stats.scenarios }}</li>
+        </ul>
+    </div>
+    
+    <div style="border: 1px solid #ccc; padding: 15px; border-radius: 5px; background-color: #f0f9ff;">
+        <h3>Simulator Performance</h3>
+        <ul style="list-style: none; padding: 0;">
+            <li>Total Attempts: {{ stats.responses }}</li>
+            <li style="color: green; margin-top: 5px;">
+                <strong>Successes (Caught Phish):</strong> {{ stats.successes }} 
+                <span style="font-size: 0.9em; background: #e6f4ea; padding: 2px 6px; border-radius: 3px;">{{ stats.success_rate }}</span>
+            </li>
+            <li style="color: red; margin-top: 5px;">
+                <strong>Failures (Missed Phish):</strong> {{ stats.failures }} 
+                <span style="font-size: 0.9em; background: #fce8e6; padding: 2px 6px; border-radius: 3px;">{{ stats.failure_rate }}</span>
+            </li>
+        </ul>
+    </div>
+
+    <div style="border: 1px solid #ccc; padding: 15px; border-radius: 5px; text-align: center;">
+        <h3>Overall Accuracy</h3>
+        <h2 style="font-size: 42px; color: #0056b3; margin-top: 10px;">{{ stats.success_rate }}</h2>
+    </div>
+</div>
+{% endblock %}

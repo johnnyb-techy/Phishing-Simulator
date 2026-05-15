@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}New User{% endblock %}
+{% block content %}
+<h1>New User</h1>
+<form method="post">
+  <p>Full Name: <input type="text" name="full_name" required></p>
+  <p>Email: <input type="email" name="email" required></p>
+  <p>Department:
+    <select name="department_id">
+      <option value="">— None —</option>
+      {% for d in departments %}
+      <option value="{{ d.id }}">{{ d.name }}</option>
+      {% endfor %}
+    </select>
+  </p>
+  <p>Role:
+    <select name="role">
+      <option value="learner">Learner</option>
+      <option value="admin">Admin</option>
+    </select>
+  </p>
+  <p><button type="submit">Create</button> <a href="{{ url_for('users') }}">Cancel</a></p>
+</form>
+{% endblock %}
