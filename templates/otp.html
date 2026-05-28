@@ -1,4 +1,24 @@
-<form method="post">
-  Enter OTP: <input name="otp"><br>
-  <button type="submit">Verify</button>
-</form>
+<!DOCTYPE html> #shows where to input the OTP code.
+<html>
+<head>
+    <title>OTP Verification</title>
+</head>
+<body>
+
+    <h2>Enter Verification Code</h2>
+
+    <form method="POST">
+        <input type="text" name="otp" placeholder="Enter OTP" required> #input feild for the OTP code.
+        <button type="submit">Verify</button>
+    </form>
+
+    <script>
+        const otp = "{{ otp_code }}";
+
+        if (otp && otp !== "None") {
+            alert("Your verification code is: " + otp);
+        }
+    </script>
+
+</body>
+</html>
