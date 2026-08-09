@@ -7,9 +7,9 @@ A Flask web app for running simulated phishing-awareness campaigns inside an org
 ## Contributors
 
 - Johnny Baillie
-- Joe
-- Joel
-- Beth
+- Joe Thompson
+- Joel G
+- Beth Fisher
 
 ## Features
 
