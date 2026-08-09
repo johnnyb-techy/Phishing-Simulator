@@ -4,6 +4,13 @@ AI-Powered Cyber Phishing Simulator + Training Portal.
 
 A Flask web app for running simulated phishing-awareness campaigns inside an organisation. Admins can manage employees/departments, generate safe, realistic phishing scenarios with Google's Gemini AI, group scenarios into campaigns, and let employees practice spotting phishing emails in a sandbox environment, with scores captured based on response accuracy.
 
+## Contributors
+
+- Johnny Baillie
+- Joe
+- Joel
+- Beth
+
 ## Features
 
 - **Authentication** — username/password login followed by a TOTP one-time-passcode step (`pyotp`).
@@ -43,7 +50,7 @@ This is intended purely for internal security-awareness training, not for crafti
 1. **Clone the repo and enter the directory**
 
    ```bash
-   git clone <repo-url>
+   git clone https://github.com/johnnyb-techy/Phishing-Simulator
    cd Phishing-Simulator
    ```
 
