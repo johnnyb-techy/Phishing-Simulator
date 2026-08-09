@@ -97,7 +97,7 @@ The app runs in `DEV_MODE = True` by default (see `app.py`), which enables a cou
 - **Password:** `password123`
 - **OTP:** the real TOTP code is printed to the terminal on startup and on each `/otp` page load, but in dev mode you can also just enter `000000`.
 
-> ⚠️ Set `DEV_MODE = False` before using this anywhere beyond local development!
+> Set `DEV_MODE = False` before using this anywhere beyond local development!
 
 ## Project structure
 
