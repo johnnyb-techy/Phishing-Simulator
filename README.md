@@ -13,7 +13,7 @@ A Flask web app for running simulated phishing-awareness campaigns inside an org
 
 ## Features
 
-- **Authentication** — username/password login followed by a TOTP one-time-passcode step (`pyotp`).
+- **Authentication** — self-service registration and login by username or email, with passwords hashed (`werkzeug.security`) and a TOTP one-time-passcode step (`pyotp`) after login.
 - **Dashboard** — live stats: total users, campaigns, scenarios, responses, and phishing-detection success/failure rates.
 - **User management** — add employees and assign them to a department and role (`admin` / `learner`).
 - **Departments** — organise users by department (e.g. Finance, Engineering, HR).
@@ -91,10 +91,14 @@ This is intended purely for internal security-awareness training, not for crafti
 
 ## Logging in
 
-The app runs in `DEV_MODE = True` by default (see `app.py`), which enables a couple of shortcuts for local testing:
+Accounts live in the `auth_user` table and can log in with either their **username** or their **email**. You can either register a new account at `/register`, or use the seeded default account:
 
 - **Username:** `joe`
+- **Email:** `joe@company.com`
 - **Password:** `password123`
+
+The app runs in `DEV_MODE = True` by default (see `app.py`), which enables a shortcut for local testing:
+
 - **OTP:** the real TOTP code is printed to the terminal on startup and on each `/otp` page load, but in dev mode you can also just enter `000000`.
 
 > Set `DEV_MODE = False` before using this anywhere beyond local development!
@@ -111,4 +115,4 @@ portal.db            SQLite database (created at runtime, git-ignored)
 ## Notes
 
 - `portal.db` and `.env` are git-ignored — each environment builds/configures its own.
-- The app is currently being developed based off the Minimal Viable Product The Flask `secret_key` and mock auth store (`users_auth`) in `app.py` are hardcoded for demo purposes and should be replaced with proper secrets management and a real user store before any production use.
+- The app is currently being developed based off the Minimal Viable Product. The Flask `secret_key` in `app.py` is hardcoded for demo purposes and should be replaced with proper secrets management before any production use.

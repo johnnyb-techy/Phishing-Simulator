@@ -11,6 +11,7 @@ if os.getenv("GEMINI_API_KEY"):
     ai_client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 
 from flask import Flask, render_template, request, redirect, session, url_for
+from werkzeug.security import generate_password_hash, check_password_hash
 import sqlite3
 import pyotp
 
@@ -19,14 +20,6 @@ app = Flask(__name__)
 app.secret_key = 'mvp-secret'
 DB = 'portal.db'
 DEV_MODE = True  # Change to False for real use
-
-# Fake database for Auth 
-users_auth = {
-    "joe": {
-        "password": "password123",
-        "otp_secret": pyotp.random_base32()
-    }
-}
 
 # --- DATABASE SETUP ---
 def get_db():
@@ -37,6 +30,7 @@ def get_db():
 def init_db():
     conn = get_db()
     conn.executescript('''
+        CREATE TABLE IF NOT EXISTS auth_user (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT NOT NULL UNIQUE, email TEXT NOT NULL UNIQUE, password_hash TEXT NOT NULL, otp_secret TEXT NOT NULL);
         CREATE TABLE IF NOT EXISTS department (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, description TEXT);
         CREATE TABLE IF NOT EXISTS user (id INTEGER PRIMARY KEY AUTOINCREMENT, department_id INTEGER REFERENCES department(id), email TEXT NOT NULL UNIQUE, full_name TEXT NOT NULL, role TEXT NOT NULL DEFAULT 'learner');
         CREATE TABLE IF NOT EXISTS scenario (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL, attack_type TEXT NOT NULL, difficulty TEXT NOT NULL, email_subject TEXT NOT NULL, email_body TEXT NOT NULL, sender_name TEXT NOT NULL, sender_email TEXT NOT NULL);
@@ -56,30 +50,73 @@ def init_db():
             INSERT INTO campaign_scenario (campaign_id, scenario_id, sequence_order) VALUES (1, 1, 1), (1, 2, 2);
             INSERT INTO user_campaign (user_id, campaign_id, status) VALUES (2, 1, 'enrolled'), (3, 1, 'enrolled');
         ''')
+
+    # Seed the default login account (auth_user is separate from the trainee "user" table above)
+    if conn.execute('SELECT COUNT(*) FROM auth_user').fetchone()[0] == 0:
+        conn.execute(
+            'INSERT INTO auth_user (username, email, password_hash, otp_secret) VALUES (?, ?, ?, ?)',
+            ('joe', 'joe@company.com', generate_password_hash('password123', method='pbkdf2:sha256'), pyotp.random_base32())
+        )
+
     conn.commit()
     conn.close()
+
+init_db()  # Run on import so the schema exists whether started via `python app.py` or `flask run`
 
 # --- AUTHENTICATION ROUTES ---
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
-        username = request.form["username"]
+        identifier = request.form["username"]  # accepts either a username or an email
         password = request.form["password"]
 
-        user = users_auth.get(username)
+        conn = get_db()
+        user = conn.execute(
+            'SELECT * FROM auth_user WHERE username = ? OR email = ?', (identifier, identifier)
+        ).fetchone()
+        conn.close()
 
-        if user and user["password"] == password:
-            session["user"] = username
+        if user and check_password_hash(user["password_hash"], password):
+            session["user"] = user["username"]
             return redirect("/otp")
         return "Login failed"
 
     return render_template("login.html")
 
+@app.route("/register", methods=["GET", "POST"])
+def register():
+    if request.method == "POST":
+        username = request.form["username"]
+        email = request.form["email"]
+        password = request.form["password"]
+
+        conn = get_db()
+        existing = conn.execute(
+            'SELECT id FROM auth_user WHERE username = ? OR email = ?', (username, email)
+        ).fetchone()
+
+        if existing:
+            conn.close()
+            return "Username or email already registered"
+
+        conn.execute(
+            'INSERT INTO auth_user (username, email, password_hash, otp_secret) VALUES (?, ?, ?, ?)',
+            (username, email, generate_password_hash(password, method='pbkdf2:sha256'), pyotp.random_base32())
+        )
+        conn.commit()
+        conn.close()
+        return redirect("/login")
+
+    return render_template("register.html")
+
 @app.route("/otp", methods=["GET", "POST"])
 def otp():
     if "user" not in session: return redirect("/login")
-        
-    user = users_auth[session["user"]]
+
+    conn = get_db()
+    user = conn.execute('SELECT * FROM auth_user WHERE username = ?', (session["user"],)).fetchone()
+    conn.close()
+
     totp = pyotp.TOTP(user["otp_secret"])
 
     if DEV_MODE: print("DEV OTP:", totp.now())  # Shows OTP in terminal
@@ -259,8 +296,10 @@ def train():
     return render_template('train.html', scenario=scenario)
 
 if __name__ == '__main__':
+    conn = get_db()
+    joe_secret = conn.execute('SELECT otp_secret FROM auth_user WHERE username = ?', ('joe',)).fetchone()[0]
+    conn.close()
     print("-----------------------------------------")
-    print(f"JOE'S SECRET FOR AUTHENTICATOR: {users_auth['joe']['otp_secret']}") 
+    print(f"JOE'S SECRET FOR AUTHENTICATOR: {joe_secret}")
     print("-----------------------------------------")
-    init_db()
     app.run(debug=True)
