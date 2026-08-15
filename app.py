@@ -27,6 +27,13 @@ def get_db():
     conn.row_factory = sqlite3.Row
     return conn
 
+def get_current_trainee(conn):
+    """Link logged-in auth_user to their trainee record in the user table, matched by email."""
+    auth = conn.execute('SELECT email FROM auth_user WHERE username = ?', (session["user"],)).fetchone()
+    if not auth:
+        return None
+    return conn.execute('SELECT * FROM user WHERE email = ?', (auth["email"],)).fetchone()
+
 def init_db():
     conn = get_db()
     conn.executescript('''
@@ -44,14 +51,14 @@ def init_db():
     if conn.execute('SELECT COUNT(*) FROM department').fetchone()[0] == 0:
         conn.executescript('''
             INSERT INTO department (name, description) VALUES ('Finance', 'Finance and accounting'), ('Engineering', 'Software development'), ('HR', 'Human resources');
-            INSERT INTO user (department_id, email, full_name, role) VALUES (1, 'alice@company.com', 'Alice Johnson', 'admin'), (1, 'bob@company.com', 'Bob Smith', 'learner'), (2, 'carol@company.com', 'Carol White', 'learner');
+            INSERT INTO user (department_id, email, full_name, role) VALUES (1, 'alice@company.com', 'Alice Johnson', 'admin'), (1, 'bob@company.com', 'Bob Smith', 'learner'), (2, 'carol@company.com', 'Carol White', 'learner'), (2, 'joe@company.com', 'Joe (Admin)', 'admin');
             INSERT INTO scenario (title, attack_type, difficulty, email_subject, email_body, sender_name, sender_email) VALUES ('Urgent Password Reset', 'Credential Harvest', 'easy', 'ACTION REQUIRED: Please click the Phishing link', 'Dear User, please click the below link so I can hack your network.', 'Malicious Hacker', 'hacker@badguy.com'), ('CEO Wire Transfer', 'Business Email Compromise', 'medium', 'Confidential - urgent wire transfer needed', 'Hi, I need you to process an urgent wire transfer of $47,500 to a new vendor before EOD. Keep this confidential.', 'Michael Chen (CEO)', 'mchen@company-corp.net');
             INSERT INTO campaign (name, status, starts_at, ends_at) VALUES ('Q3 Awareness Training', 'active', '2026-04-01', '2026-06-30');
             INSERT INTO campaign_scenario (campaign_id, scenario_id, sequence_order) VALUES (1, 1, 1), (1, 2, 2);
-            INSERT INTO user_campaign (user_id, campaign_id, status) VALUES (2, 1, 'enrolled'), (3, 1, 'enrolled');
+            INSERT INTO user_campaign (user_id, campaign_id, status) VALUES (2, 1, 'enrolled'), (3, 1, 'enrolled'), (4, 1, 'enrolled');
         ''')
 
-    # Seed the default login account (auth_user is separate from the trainee "user" table above)
+    # Insert default login account (auth_user is separate from the trainee "user" table above)
     if conn.execute('SELECT COUNT(*) FROM auth_user').fetchone()[0] == 0:
         conn.execute(
             'INSERT INTO auth_user (username, email, password_hash, otp_secret) VALUES (?, ?, ?, ?)',
@@ -103,6 +110,15 @@ def register():
             'INSERT INTO auth_user (username, email, password_hash, otp_secret) VALUES (?, ?, ?, ?)',
             (username, email, generate_password_hash(password, method='pbkdf2:sha256'), pyotp.random_base32())
         )
+
+        # Give the new login a matching trainee record, unless one already exists under this email
+        try:
+            conn.execute(
+                'INSERT INTO user (email, full_name, role) VALUES (?, ?, ?)', (email, username, 'learner')
+            )
+        except sqlite3.IntegrityError:
+            pass
+
         conn.commit()
         conn.close()
         return redirect("/login")
@@ -208,7 +224,7 @@ def scenarios():
     if request.method == 'POST':
         scenario_type = request.form.get('scenario_type') 
         
-        # --- THE ETHICAL AI GUARDRAILS ---
+        # --- ETHICAL AI GUARDRAILS ---
         prompt = f"""
         You are an educational cybersecurity AI acting as a backend engine for a phishing simulator.
         Your task is to generate a safe, simulated phishing email for a corporate training environment.
@@ -261,39 +277,187 @@ def scenarios():
 @app.route('/campaigns')
 def campaigns():
     if "user" not in session: return redirect("/login")
-    return render_template('campaigns.html')
+    conn = get_db()
+    rows = conn.execute('''
+        SELECT c.*,
+            (SELECT COUNT(*) FROM campaign_scenario cs WHERE cs.campaign_id = c.id) AS scenario_count,
+            (SELECT COUNT(*) FROM user_campaign uc WHERE uc.campaign_id = c.id) AS enrolled_count,
+            (SELECT AVG(uc.score) FROM user_campaign uc WHERE uc.campaign_id = c.id) AS avg_score
+        FROM campaign c
+        ORDER BY c.id DESC
+    ''').fetchall()
+    conn.close()
+    return render_template('campaigns.html', campaigns=rows)
+
+@app.route('/campaigns/new', methods=['GET', 'POST'])
+def new_campaign():
+    if "user" not in session: return redirect("/login")
+    conn = get_db()
+
+    if request.method == 'POST':
+        name = request.form.get('name')
+        status = request.form.get('status', 'draft')
+        starts_at = request.form.get('starts_at') or None
+        ends_at = request.form.get('ends_at') or None
+        scenario_ids = request.form.getlist('scenario_ids')
+
+        cur = conn.execute(
+            'INSERT INTO campaign (name, status, starts_at, ends_at) VALUES (?, ?, ?, ?)',
+            (name, status, starts_at, ends_at)
+        )
+        campaign_id = cur.lastrowid
+
+        for order, scenario_id in enumerate(scenario_ids, start=1):
+            conn.execute(
+                'INSERT INTO campaign_scenario (campaign_id, scenario_id, sequence_order) VALUES (?, ?, ?)',
+                (campaign_id, scenario_id, order)
+            )
+
+        conn.commit()
+        conn.close()
+        return redirect(url_for('campaign_detail', campaign_id=campaign_id))
+
+    scenarios = conn.execute('SELECT * FROM scenario').fetchall()
+    conn.close()
+    return render_template('campaign_form.html', scenarios=scenarios)
+
+@app.route('/campaigns/<int:campaign_id>')
+def campaign_detail(campaign_id):
+    if "user" not in session: return redirect("/login")
+    conn = get_db()
+
+    campaign = conn.execute('SELECT * FROM campaign WHERE id = ?', (campaign_id,)).fetchone()
+    if campaign is None:
+        conn.close()
+        return "Campaign not found", 404
+
+    scenarios = conn.execute('''
+        SELECT s.*, cs.sequence_order
+        FROM campaign_scenario cs JOIN scenario s ON s.id = cs.scenario_id
+        WHERE cs.campaign_id = ?
+        ORDER BY cs.sequence_order
+    ''', (campaign_id,)).fetchall()
+
+    roster = conn.execute('''
+        SELECT uc.*, u.full_name, u.email
+        FROM user_campaign uc JOIN user u ON u.id = uc.user_id
+        WHERE uc.campaign_id = ?
+        ORDER BY u.full_name
+    ''', (campaign_id,)).fetchall()
+
+    available_users = conn.execute('''
+        SELECT * FROM user
+        WHERE id NOT IN (SELECT user_id FROM user_campaign WHERE campaign_id = ?)
+        ORDER BY full_name
+    ''', (campaign_id,)).fetchall()
+
+    conn.close()
+    return render_template(
+        'campaign_detail.html',
+        campaign=campaign, scenarios=scenarios, roster=roster, available_users=available_users
+    )
+
+@app.route('/campaigns/<int:campaign_id>/enroll', methods=['POST'])
+def enroll_campaign(campaign_id):
+    if "user" not in session: return redirect("/login")
+    user_id = request.form.get('user_id')
+
+    if user_id:
+        conn = get_db()
+        existing = conn.execute(
+            'SELECT id FROM user_campaign WHERE campaign_id = ? AND user_id = ?', (campaign_id, user_id)
+        ).fetchone()
+        if not existing:
+            conn.execute(
+                'INSERT INTO user_campaign (user_id, campaign_id) VALUES (?, ?)', (user_id, campaign_id)
+            )
+            conn.commit()
+        conn.close()
+
+    return redirect(url_for('campaign_detail', campaign_id=campaign_id))
 
 # --- THE SIMULATOR TRAINING LOOP ---
 @app.route('/train', methods=['GET', 'POST'])
 def train():
     if "user" not in session: return redirect("/login")
     conn = get_db()
-    
+    trainee = get_current_trainee(conn)
+
+    if trainee is None:
+        conn.close()
+        return render_template(
+            'train.html', scenario=None,
+            message="Your login isn't linked to a trainee profile, so there's nothing to train on yet."
+        )
+
     if request.method == 'POST':
-        # 1. Grab the user's choice from the buttons
-        action = request.form.get('action') # 'phishing' or 'safe'
-        scenario_id = request.form.get('scenario_id')
-        
+        # 1. Grab the user's choice from the buttons, and which real scenario or enrollment it belongs to
+        action = request.form.get('action')  # 'phishing' or 'safe'
+        user_campaign_id = request.form.get('user_campaign_id')
+        campaign_scenario_id = request.form.get('campaign_scenario_id')
+
         # 2. Evaluate if they were correct
         correct = (action == 'phishing')
         flagged = 1 if action == 'phishing' else 0
-        
-        # 3. Store the data (Satisfies the Flowchart & ERD)
+        points = 10 if correct else 0
+
+        # 3. Store the response and add its score to the enrollment's running total
         conn.execute('''
-            INSERT INTO user_response (user_campaign_id, campaign_scenario_id, action, flagged_as_phishing)
-            VALUES (1, 1, ?, ?)
-        ''', (action, flagged))
+            INSERT INTO user_response (user_campaign_id, campaign_scenario_id, action, flagged_as_phishing, score)
+            VALUES (?, ?, ?, ?, ?)
+        ''', (user_campaign_id, campaign_scenario_id, action, flagged, points))
+        conn.execute(
+            'UPDATE user_campaign SET score = score + ? WHERE id = ?', (points, user_campaign_id)
+        )
+
+        # 4. Mark the enrollment complete once every scenario in its campaign has been answered
+        campaign_id = conn.execute(
+            'SELECT campaign_id FROM user_campaign WHERE id = ?', (user_campaign_id,)
+        ).fetchone()['campaign_id']
+        total_scenarios = conn.execute(
+            'SELECT COUNT(*) FROM campaign_scenario WHERE campaign_id = ?', (campaign_id,)
+        ).fetchone()[0]
+        answered_scenarios = conn.execute(
+            'SELECT COUNT(DISTINCT campaign_scenario_id) FROM user_response WHERE user_campaign_id = ?',
+            (user_campaign_id,)
+        ).fetchone()[0]
+        if answered_scenarios >= total_scenarios:
+            conn.execute(
+                "UPDATE user_campaign SET status = 'completed', completed_at = CURRENT_TIMESTAMP WHERE id = ?",
+                (user_campaign_id,)
+            )
+
         conn.commit()
         conn.close()
-        
-        # 4. Show the feedback screen
+
+        # 5. Show the feedback screen
         return render_template('feedback.html', correct=correct, action=action)
 
-    # If GET request: Pick a random scenario from the database to display
-    scenario = conn.execute('SELECT * FROM scenario ORDER BY RANDOM() LIMIT 1').fetchone()
+    # If GET request: find the trainee's next unanswered scenario from an active campaign they're enrolled in
+    next_scenario = conn.execute('''
+        SELECT s.*, cs.id AS campaign_scenario_id, uc.id AS user_campaign_id
+        FROM user_campaign uc
+        JOIN campaign c ON c.id = uc.campaign_id
+        JOIN campaign_scenario cs ON cs.campaign_id = uc.campaign_id
+        JOIN scenario s ON s.id = cs.scenario_id
+        WHERE uc.user_id = ?
+          AND c.status = 'active'
+          AND uc.status = 'enrolled'
+          AND cs.id NOT IN (
+              SELECT campaign_scenario_id FROM user_response WHERE user_campaign_id = uc.id
+          )
+        ORDER BY uc.enrolled_at, cs.sequence_order
+        LIMIT 1
+    ''', (trainee['id'],)).fetchone()
     conn.close()
-    
-    return render_template('train.html', scenario=scenario)
+
+    if next_scenario is None:
+        return render_template(
+            'train.html', scenario=None,
+            message="No active training assigned right now — check back once you're enrolled in a campaign."
+        )
+
+    return render_template('train.html', scenario=next_scenario, message=None)
 
 if __name__ == '__main__':
     conn = get_db()

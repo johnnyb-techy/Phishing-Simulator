@@ -2,5 +2,21 @@
 {% block title %}Campaigns{% endblock %}
 {% block content %}
 <h1>Campaigns</h1>
-<p>Coming soon.</p>
+<button type="button" onclick="window.location.href='{{ url_for('new_campaign') }}'">+ New Campaign</button>
+<table border="1" cellpadding="4">
+  <tr><th>Name</th><th>Status</th><th>Starts</th><th>Ends</th><th>Scenarios</th><th>Enrolled</th><th>Avg Score</th></tr>
+  {% for c in campaigns %}
+  <tr onclick="window.location.href='{{ url_for('campaign_detail', campaign_id=c.id) }}'" style="cursor: pointer;">
+    <td>{{ c.name }}</td>
+    <td>{{ c.status }}</td>
+    <td>{{ c.starts_at or '—' }}</td>
+    <td>{{ c.ends_at or '—' }}</td>
+    <td>{{ c.scenario_count }}</td>
+    <td>{{ c.enrolled_count }}</td>
+    <td>{{ '%.1f'|format(c.avg_score) if c.avg_score is not none else '—' }}</td>
+  </tr>
+  {% else %}
+  <tr><td colspan="7">No campaigns yet.</td></tr>
+  {% endfor %}
+</table>
 {% endblock %}

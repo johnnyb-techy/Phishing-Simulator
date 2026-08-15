@@ -2,5 +2,28 @@
 {% block title %}New Campaign{% endblock %}
 {% block content %}
 <h1>New Campaign</h1>
+<form method="post">
+  Name: <input name="name" required><br>
+  Status:
+  <select name="status">
+    <option value="draft">Draft</option>
+    <option value="active">Active</option>
+    <option value="completed">Completed</option>
+  </select><br>
+  Starts: <input type="date" name="starts_at"><br>
+  Ends: <input type="date" name="ends_at"><br>
 
+  <p>Scenarios to include (sequenced in the order listed below):</p>
+  {% for s in scenarios %}
+    <label>
+      <input type="checkbox" name="scenario_ids" value="{{ s.id }}">
+      {{ s.title }} ({{ s.attack_type }})
+    </label><br>
+  {% else %}
+    <p>No scenarios yet — <a href="{{ url_for('scenarios') }}">create one first</a>.</p>
+  {% endfor %}
+
+  <br>
+  <button type="submit">Create Campaign</button>
+</form>
 {% endblock %}
