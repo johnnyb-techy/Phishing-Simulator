@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}Phishing Simulator{% endblock %}
+
+{% block content %}
+<div style="text-align: center; margin-top: 50px;">
+    <h1>Phishing Simulator</h1>
+
+    {% if scenario %}
+
+    <div style="width: 60%; margin: 0 auto; background-color: #f4f4f4; padding: 30px; border: 1px solid #ccc; border-radius: 8px; text-align: left;">
+        <p><strong>From:</strong> {{ scenario.sender_name }} &lt;{{ scenario.sender_email }}&gt;</p>
+        <p><strong>Subject:</strong> {{ scenario.email_subject }}</p>
+        <hr>
+
+        <pre style="white-space: pre-wrap; font-family: Arial, sans-serif;">{{ scenario.email_body }}</pre>
+    </div>
+
+    <div style="width: 60%; margin: 30px auto 0; text-align: left;">
+        <h2>Training Question</h2>
+
+        <p><strong>{{ scenario.question }}</strong></p>
+
+        <form method="post">
+            <input type="hidden" name="user_campaign_id" value="{{ scenario.user_campaign_id }}">
+            <input type="hidden" name="campaign_scenario_id" value="{{ scenario.campaign_scenario_id }}">
+
+            <button type="submit" name="action" value="A">
+                A. {{ scenario.option_a }}
+            </button>
+
+            <br><br>
+
+            <button type="submit" name="action" value="B">
+                B. {{ scenario.option_b }}
+            </button>
+
+            <br><br>
+
+            <button type="submit" name="action" value="C">
+                C. {{ scenario.option_c }}
+            </button>
+
+            <br><br>
+
+            <button type="submit" name="action" value="D">
+                D. {{ scenario.option_d }}
+            </button>
+        </form>
+    </div>
+
+    {% else %}
+
+    <p>{{ message }}</p>
+
+    {% endif %}
+</div>
+{% endblock %}
