@@ -4,12 +4,19 @@
 <h1>New Campaign</h1>
 <form method="post">
   Name: <input name="name" required><br>
-  Status:
-  <select name="status">
-    <option value="draft">Draft</option>
-    <option value="active">Active</option>
-    <option value="completed">Completed</option>
+    
+  Target Department:
+  <select name="department_id" required>
+    <option value="">-- Select Department --</option>
+
+    {% for department in departments %}
+      <option value="{{ department.id }}">
+        {{ department.name }}
+      </option>
+    {% endfor %}
   </select><br>
+ 
+  Status: <strong>Draft</strong> <br>
   Starts: <input type="date" name="starts_at"><br>
   Ends: <input type="date" name="ends_at"><br>
 

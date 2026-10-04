@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Department{% endblock %}
+
+{% block content %}
+
+<h1>Edit Department</h1>
+
+<form method="post">
+
+  <p>
+    Name:
+    <input type="text"
+           name="name"
+           value="{{ department.name }}"
+           required>
+  </p>
+
+  <p>
+    Description:
+    <input type="text"
+           name="description"
+           value="{{ department.description or '' }}">
+  </p>
+<h3>Training Study Areas</h3>
+
+<p>Select the study areas that belong to this department:</p>
+
+{% for area in study_areas %}
+    <label>
+        <input
+            type="checkbox"
+            name="study_areas"
+            value="{{ area }}"
+            {% if area in selected_study_areas %}checked{% endif %}
+        >
+        {{ area }}
+    </label>
+    <br>
+{% endfor %}
+  <p>
+    <button type="submit">Save Changes</button>
+    <a href="{{ url_for('departments') }}">Cancel</a>
+  </p>
+
+</form>
+
+{% endblock %}

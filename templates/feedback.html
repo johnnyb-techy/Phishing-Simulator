@@ -1,26 +1,44 @@
 {% extends "base.html" %}
-{% block title %}Simulator Feedback{% endblock %}
+{% block title %}Training Feedback{% endblock %}
+
 {% block content %}
 <div style="text-align: center; margin-top: 50px;">
-    <h1>Simulator Feedback</h1>
-    
-    {% if correct %}
-        <h2 style="color: #28a745;">Great Job!</h2>
-        <p>You correctly identified the email. Spotting these threats keeps the organisation safe.</p>
-    {% else %}
-        <h2 style="color: #dc3545;">Oops, you were caught!</h2>
-        <p>You selected <strong>{{ action }}</strong>, but that was a simulated phishing attack. Always double-check the sender's email address and be wary of urgent demands!</p>
-    {% endif %}
-    
-    <div style="margin-top: 40px;">
-        <a href="{{ url_for('train') }}">
-            <button style="padding: 10px 20px; font-size: 16px; background-color: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; margin-right: 15px;">
-                Try Another Scenario
-            </button>
-        </a>
-        <a href="{{ url_for('index') }}" style="font-size: 16px; color: #555; text-decoration: none;">
-            End Training (Return to Dashboard)
-        </a>
+    <h1>Training Feedback</h1>
+
+    <div style="width: 60%; margin: 30px auto; padding: 30px; background-color: #f4f4f4; border-radius: 8px;">
+
+        {% if correct %}
+            <h2 style="color: #1D806F;">Correct!</h2>
+            <p>Great work. You selected the correct answer.</p>
+        {% else %}
+            <h2 style="color: #CC4131;">Incorrect</h2>
+            <p>
+                You selected <strong>{{ action }}</strong>.
+                The correct answer was <strong>{{ correct_answer }}</strong>.
+            </p>
+        {% endif %}
+
+        <hr>
+
+        <h3>Why?</h3>
+        <p style="text-align: left;">
+            {{ explanation }}
+        </p>
+
+        <div style="margin-top: 30px;">
+            <a href="{{ url_for('train') }}">
+                <button style="padding: 12px 22px; font-size: 16px; background-color: #00BFA6; color: #0E141D; border: none; border-radius: 5px; cursor: pointer;">
+                    Continue Training
+                </button>
+            </a>
+        </div>
+
+        <div style="margin-top: 20px;">
+            <a href="{{ url_for('index') }}" style="color: #2F356B;">
+                End Training
+            </a>
+        </div>
+
     </div>
 </div>
 {% endblock %}

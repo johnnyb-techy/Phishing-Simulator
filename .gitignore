@@ -2,3 +2,6 @@ __pycache__/
 portal.db
 .env
 venv/
+venv/
+*.db
+__pycache__/

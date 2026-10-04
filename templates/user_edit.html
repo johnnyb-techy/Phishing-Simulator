@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+
+{% block title %}Edit User{% endblock %}
+
+{% block content %}
+
+<h1>Edit User</h1>
+
+<form method="post">
+
+  <p>
+    Full Name:
+    <input type="text"
+           name="full_name"
+           value="{{ edit_user.full_name }}"
+           required>
+  </p>
+
+  <p>
+    Email:
+    <input type="email"
+           name="email"
+           value="{{ edit_user.email }}"
+           required>
+  </p>
+
+  <p>
+    Job Title:
+    <input type="text"
+           name="job_title"
+           value="{{ edit_user.job_title or '' }}">
+  </p>
+
+  <p>
+    Department:
+    <select name="department_id">
+
+      <option value="">— None —</option>
+
+      {% for d in departments %}
+      <option value="{{ d.id }}"
+        {% if edit_user.department_id == d.id %}selected{% endif %}>
+        {{ d.name }}
+      </option>
+      {% endfor %}
+
+    </select>
+  </p>
+
+  <p>
+    Role:
+    <select name="role">
+
+      <option value="learner"
+        {% if edit_user.role == 'learner' %}selected{% endif %}>
+        Learner
+      </option>
+
+      <option value="admin"
+        {% if edit_user.role == 'admin' %}selected{% endif %}>
+        Admin
+      </option>
+
+    </select>
+  </p>
+
+  <p>
+    <button type="submit">Save Changes</button>
+    <a href="{{ url_for('users') }}">Cancel</a>
+  </p>
+
+</form>
+
+{% endblock %}

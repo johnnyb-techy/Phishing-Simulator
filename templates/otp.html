@@ -1,4 +1,14 @@
+<h2>Two-Factor Authentication</h2>
+
+<p>A temporary verification code has been generated for this training environment.</p>
+
+<p><strong>Your OTP Code:</strong> {{ otp_code }}</p>
+
+<p>This code will expire after 5 minutes.</p>
+
 <form method="post">
-  Enter OTP: <input name="otp"><br>
+  Enter OTP:
+  <input name="otp" maxlength="6" required><br><br>
+
   <button type="submit">Verify</button>
 </form>
