@@ -4,23 +4,25 @@
   <title>{% block title %}PhishGuard{% endblock %}</title>
 </head>
 <body>
-  <p>
-    <a href="{{ url_for('index') }}">Dashboard</a> |
-    <a href="{{ url_for('campaigns') }}">Campaigns</a>
-    {% if current_is_admin %}
-    | <a href="{{ url_for('scenarios') }}">Scenarios</a>
-    | <a href="{{ url_for('users') }}">Users</a>
-    | <a href="{{ url_for('departments') }}">Departments</a>
-    {% endif %}
+  <div style="display: flex; justify-content: space-between; align-items: center; gap: 15px; flex-wrap: wrap;">
+    <p style="margin: 0;">
+      <a href="{{ url_for('index') }}">Dashboard</a> |
+      <a href="{{ url_for('campaigns') }}">Campaigns</a>
+      {% if current_is_admin %}
+      | <a href="{{ url_for('scenarios') }}">Scenarios</a>
+      | <a href="{{ url_for('users') }}">Users</a>
+      | <a href="{{ url_for('departments') }}">Departments</a>
+      {% endif %}
+    </p>
     {% if current_user %}
-    <span style="float: right;">
-      Logged in as <strong>{{ current_user }}</strong>
-      <form method="post" action="{{ url_for('logout') }}" style="display: inline;">
-        <button type="submit">Log out</button>
-      </form>
-    </span>
+    <form method="post" action="{{ url_for('logout') }}" style="margin: 0; margin-left: auto; display: flex; align-items: center; gap: 10px;">
+      <span>Logged in as <strong>{{ current_user }}</strong></span>
+      <button type="submit" style="padding: 8px 18px; font-size: 16px; background-color: #dc3545; color: white; border: none; border-radius: 5px; cursor: pointer;">
+        Log out
+      </button>
+    </form>
     {% endif %}
-  </p>
+  </div>
   <hr>
   {% with messages = get_flashed_messages() %}
     {% for msg in messages %}
