@@ -6,10 +6,20 @@
 <body>
   <p>
     <a href="{{ url_for('index') }}">Dashboard</a> |
-    <a href="{{ url_for('campaigns') }}">Campaigns</a> |
-    <a href="{{ url_for('scenarios') }}">Scenarios</a> |
-    <a href="{{ url_for('users') }}">Users</a> |
-    <a href="{{ url_for('departments') }}">Departments</a>
+    <a href="{{ url_for('campaigns') }}">Campaigns</a>
+    {% if current_is_admin %}
+    | <a href="{{ url_for('scenarios') }}">Scenarios</a>
+    | <a href="{{ url_for('users') }}">Users</a>
+    | <a href="{{ url_for('departments') }}">Departments</a>
+    {% endif %}
+    {% if current_user %}
+    <span style="float: right;">
+      Logged in as <strong>{{ current_user }}</strong>
+      <form method="post" action="{{ url_for('logout') }}" style="display: inline;">
+        <button type="submit">Log out</button>
+      </form>
+    </span>
+    {% endif %}
   </p>
   <hr>
   {% with messages = get_flashed_messages() %}

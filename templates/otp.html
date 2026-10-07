@@ -1,5 +1,11 @@
 <h2>Two-Factor Authentication</h2>
 
+{% with messages = get_flashed_messages() %}
+  {% for msg in messages %}
+    <p><strong>{{ msg }}</strong></p>
+  {% endfor %}
+{% endwith %}
+
 <p>A temporary verification code has been generated for this training environment.</p>
 
 <p><strong>Your OTP Code:</strong> {{ otp_code }}</p>

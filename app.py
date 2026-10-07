@@ -219,13 +219,14 @@ def generate_parameters(allowed_study_areas=None):
     }
 
 
-from flask import Flask, render_template, request, redirect, session, url_for
+from flask import Flask, render_template, request, redirect, session, url_for, flash
 from werkzeug.security import generate_password_hash, check_password_hash
+from functools import wraps
 import sqlite3
 
 # App Initialisation
 app = Flask(__name__)
-app.secret_key = 'mvp-secret'
+app.secret_key = os.getenv("SECRET_KEY", "mvp-secret")  # set SECRET_KEY in .env outside local development
 DB = 'portal.db'
 DEV_MODE = False  # Development mode kept disabled for normal testing
 
@@ -253,6 +254,25 @@ def is_admin(conn):
         return False
 
     return current_user["role"] == "admin"
+
+# Redirect to the login page unless the user has completed login and OTP
+def login_required(view):
+    @wraps(view)
+    def wrapped(*args, **kwargs):
+        if "user" not in session:
+            return redirect(url_for("login"))
+        return view(*args, **kwargs)
+    return wrapped
+
+# Make the logged-in username and admin flag available to every template
+@app.context_processor
+def inject_current_user():
+    if "user" not in session:
+        return {"current_user": None, "current_is_admin": False}
+    conn = get_db()
+    admin = is_admin(conn)
+    conn.close()
+    return {"current_user": session["user"], "current_is_admin": admin}
 
 
 def init_db():
@@ -403,9 +423,13 @@ init_db()  # Run on import so the schema exists whether started via `python app.
 # --- AUTHENTICATION ROUTES ---
 @app.route("/login", methods=["GET", "POST"])
 def login():
+    # Already logged in - skip straight to the dashboard
+    if "user" in session:
+        return redirect(url_for("index"))
+
     if request.method == "POST":
-        identifier = request.form["username"]  # accepts either a username or an email
-        password = request.form["password"]
+        identifier = request.form.get("username", "").strip()  # accepts either a username or an email
+        password = request.form.get("password", "")
 
         conn = get_db()
         user = conn.execute(
@@ -415,6 +439,9 @@ def login():
         conn.close()
 
         if user and check_password_hash(user["password_hash"], password):
+
+            # Start from a fresh session so no earlier login state carries over
+            session.clear()
 
             # Password is correct, but user still needs to complete OTP
             session["pending_user"] = user["username"]
@@ -428,18 +455,25 @@ def login():
             # Record when the OTP was created
             session["otp_created"] = time.time()
 
-            return redirect("/otp")
+            return redirect(url_for("otp"))
 
-        return "Login failed"
+        flash("Incorrect username/email or password.")
 
     return render_template("login.html")
 
 @app.route("/register", methods=["GET", "POST"])
 def register():
+    if "user" in session:
+        return redirect(url_for("index"))
+
     if request.method == "POST":
-        username = request.form["username"]
-        email = request.form["email"]
-        password = request.form["password"]
+        username = request.form.get("username", "").strip()
+        email = request.form.get("email", "").strip()
+        password = request.form.get("password", "")
+
+        if not username or not email or not password:
+            flash("Username, email and password are all required.")
+            return render_template("register.html")
 
         conn = get_db()
         existing = conn.execute(
@@ -448,12 +482,13 @@ def register():
 
         if existing:
             conn.close()
-            return "Username or email already registered"
+            flash("Username or email already registered.")
+            return render_template("register.html")
 
         conn.execute(
             'INSERT INTO auth_user (username, email, password_hash, otp_secret) VALUES (?, ?, ?, ?)',
             (username, email, generate_password_hash(password, method='pbkdf2:sha256'), 'unused')
-)
+        )
 
         # Give the new login a matching trainee record, unless one already exists under this email
         try:
@@ -465,54 +500,51 @@ def register():
 
         conn.commit()
         conn.close()
-        return redirect("/login")
+        flash("Account created. Please log in.")
+        return redirect(url_for("login"))
 
     return render_template("register.html")
 
 @app.route("/otp", methods=["GET", "POST"])
 def otp():
-    # User must have passed the password stage
-    if "pending_user" not in session:
-        return redirect("/login")
-
-    # Make sure an OTP exists
-    if "otp_code" not in session or "otp_created" not in session:
-        return redirect("/login")
+    # User must have passed the password stage and have an OTP waiting
+    if "pending_user" not in session or "otp_code" not in session or "otp_created" not in session:
+        return redirect(url_for("login"))
 
     if request.method == "POST":
-        code = request.form["otp"].strip()
+        code = request.form.get("otp", "").strip()
 
         # Check whether the OTP has expired (5 minutes)
         if time.time() - session["otp_created"] > 300:
-            session.pop("otp_code", None)
-            session.pop("otp_created", None)
-            session.pop("pending_user", None)
-
-            return "OTP expired. Please log in again."
+            session.clear()
+            flash("Your code expired. Please log in again.")
+            return redirect(url_for("login"))
 
         # Check whether the entered OTP is correct
         if secrets.compare_digest(code, session["otp_code"]):
 
-            # OTP passed - user is now fully logged in
-            session["user"] = session["pending_user"]
+            # OTP passed - user is now fully logged in; drop the temporary OTP information
+            username = session["pending_user"]
+            session.clear()
+            session["user"] = username
 
-            # Remove temporary OTP information
-            session.pop("pending_user", None)
-            session.pop("otp_code", None)
-            session.pop("otp_created", None)
+            return redirect(url_for("index"))
 
-            return redirect("/")
-
-        return "Invalid OTP"
+        flash("Incorrect code. Please try again.")
 
     return render_template("otp.html", otp_code=session["otp_code"])
+
+@app.route("/logout", methods=["POST"])
+def logout():
+    session.clear()
+    flash("You have been logged out.")
+    return redirect(url_for("login"))
 
 
 # --- DASHBOARD & PAGES ---
 @app.route('/')
+@login_required
 def index():
-    if "user" not in session: return redirect("/login")
-        
     conn = get_db()
     
     # 1. Calculate raw response numbers
@@ -539,10 +571,8 @@ def index():
     return render_template('index.html', stats=stats)
 
 @app.route('/users')
+@login_required
 def users():
-    if "user" not in session:
-        return redirect("/login")
-
     conn = get_db()
 
     if not is_admin(conn):
@@ -559,10 +589,8 @@ def users():
     return render_template('users.html', users=rows)
 
 @app.route('/users/new', methods=['GET', 'POST'])
+@login_required
 def new_user():
-    if "user" not in session:
-        return redirect("/login")
-
     conn = get_db()
 
     if not is_admin(conn):
@@ -611,10 +639,8 @@ def new_user():
     )
 # Edit an existing user's details
 @app.route('/users/<int:user_id>/edit', methods=['GET', 'POST'])
+@login_required
 def edit_user(user_id):
-    if "user" not in session:
-        return redirect("/login")
-
     conn = get_db()
     
     #Stops non Admins from Editing Users.
@@ -683,10 +709,8 @@ def edit_user(user_id):
 
 # Delete a user and their training data
 @app.route('/users/<int:user_id>/delete', methods=['POST'])
+@login_required
 def delete_user(user_id):
-    if "user" not in session:
-        return redirect("/login")
-
     conn = get_db()
     
     # Deleting User Protection.
@@ -722,10 +746,8 @@ def delete_user(user_id):
     return redirect(url_for('users'))
 
 @app.route('/departments')
+@login_required
 def departments():
-    if "user" not in session:
-        return redirect("/login")
-
     conn = get_db()
 
     if not is_admin(conn):
@@ -745,10 +767,8 @@ def departments():
     
 # Create a new department
 @app.route('/departments/new', methods=['GET', 'POST'])
+@login_required
 def new_department():
-    if "user" not in session:
-        return redirect("/login")
-
     conn = get_db()
 
     # Only admins can create departments
@@ -784,10 +804,8 @@ def new_department():
 
 # Edit an existing department
 @app.route('/departments/<int:department_id>/edit', methods=['GET', 'POST'])
+@login_required
 def edit_department(department_id):
-    if "user" not in session:
-        return redirect("/login")
-
     conn = get_db()
 
     # Only admins can edit departments
@@ -868,10 +886,8 @@ def edit_department(department_id):
     
 # Delete a department if no users are assigned to it
 @app.route('/departments/<int:department_id>/delete', methods=['POST'])
+@login_required
 def delete_department(department_id):
-    if "user" not in session:
-        return redirect("/login")
-
     conn = get_db()
 
     # Only admins can delete departments
@@ -909,10 +925,8 @@ def delete_department(department_id):
     return redirect(url_for('departments'))
 
 @app.route('/scenarios', methods=['GET', 'POST'])
+@login_required
 def scenarios():
-    if "user" not in session:
-        return redirect("/login")
-
     conn = get_db()
     
     # Only admins can manage and generate scenarios
@@ -1161,10 +1175,8 @@ def scenarios():
     
 #Campaigns page to show all campaigns and their details
 @app.route('/campaigns')
+@login_required
 def campaigns():
-    if "user" not in session:
-        return redirect("/login")
-
     conn = get_db()
     current_user = get_current_trainee(conn)
 
@@ -1216,10 +1228,8 @@ def campaigns():
     )
 
 @app.route('/campaigns/new', methods=['GET', 'POST'])
+@login_required
 def new_campaign():
-    if "user" not in session:
-        return redirect("/login")
-
     conn = get_db()
 
     # Only admins can create campaigns
@@ -1299,8 +1309,8 @@ def new_campaign():
 )
 
 @app.route('/campaigns/<int:campaign_id>')
+@login_required
 def campaign_detail(campaign_id):
-    if "user" not in session: return redirect("/login")
     conn = get_db()
     
     current_user = get_current_trainee(conn)
@@ -1386,10 +1396,8 @@ def campaign_detail(campaign_id):
     
 #Enrolling in Campaigns - Only Admins can manually enrol users into campaigns.
 @app.route('/campaigns/<int:campaign_id>/enroll', methods=['POST'])
+@login_required
 def enroll_campaign(campaign_id):
-    if "user" not in session:
-        return redirect("/login")
-
     user_id = request.form.get('user_id')
     conn = get_db()
 
@@ -1449,10 +1457,8 @@ def enroll_campaign(campaign_id):
 
 # Start the specific campaign selected by the user
 @app.route('/campaign/<int:campaign_id>/start-training', methods=['POST'])
+@login_required
 def start_campaign_training(campaign_id):
-    if "user" not in session:
-        return redirect("/login")
-
     conn = get_db()
     trainee = get_current_trainee(conn)
 
@@ -1479,10 +1485,8 @@ def start_campaign_training(campaign_id):
 
 # Allow a learner to retry a completed campaign
 @app.route('/campaign/<int:campaign_id>/retry', methods=['POST'])
+@login_required
 def retry_campaign_training(campaign_id):
-    if "user" not in session:
-        return redirect("/login")
-
     conn = get_db()
     trainee = get_current_trainee(conn)
 
@@ -1532,10 +1536,8 @@ def retry_campaign_training(campaign_id):
 
 # Change the status of an existing campaign
 @app.route('/campaign/<int:campaign_id>/status', methods=['POST'])
+@login_required
 def update_campaign_status(campaign_id):
-    if "user" not in session:
-        return redirect("/login")
-
     conn = get_db()
 
     # Only admins can change campaign status
@@ -1617,10 +1619,8 @@ def update_campaign_status(campaign_id):
 
 # Permanently delete a scenario and its campaign connections
 @app.route('/scenario/<int:scenario_id>/delete', methods=['POST'])
+@login_required
 def delete_scenario(scenario_id):
-    if "user" not in session:
-        return redirect("/login")
-
     conn = get_db()
     
     # Only admins can permanently delete scenarios
@@ -1657,10 +1657,8 @@ def delete_scenario(scenario_id):
 
 # Remove a scenario from a campaign without deleting the scenario itself
 @app.route('/campaign/<int:campaign_id>/scenario/<int:scenario_id>/remove', methods=['POST'])
+@login_required
 def remove_campaign_scenario(campaign_id, scenario_id):
-    if "user" not in session:
-        return redirect("/login")
-
     conn = get_db()
     
     # Only admins can remove scenarios from campaigns
@@ -1682,10 +1680,8 @@ def remove_campaign_scenario(campaign_id, scenario_id):
 
 # Delete a campaign and its campaign-specific training data
 @app.route('/campaign/<int:campaign_id>/delete', methods=['POST'])
+@login_required
 def delete_campaign(campaign_id):
-    if "user" not in session:
-        return redirect("/login")
-
     conn = get_db()
     # Only admins can delete campaigns
     if not is_admin(conn):
@@ -1735,8 +1731,8 @@ def delete_campaign(campaign_id):
     return redirect(url_for('campaigns'))
 
 @app.route('/train', methods=['GET', 'POST'])
+@login_required
 def train():
-    if "user" not in session: return redirect("/login")
     conn = get_db()
     trainee = get_current_trainee(conn)
 
