@@ -15,12 +15,10 @@
       {% endif %}
     </p>
     {% if current_user %}
-    <form method="post" action="{{ url_for('logout') }}" style="margin: 0; margin-left: auto; display: flex; align-items: center; gap: 10px;">
-      <span>Logged in as <strong>{{ current_user }}</strong></span>
-      <button type="submit" style="padding: 8px 18px; font-size: 16px; background-color: #dc3545; color: white; border: none; border-radius: 5px; cursor: pointer;">
-        Log out
-      </button>
-    </form>
+    <p style="margin: 0; margin-left: auto;">
+      Logged in as <strong>{{ current_user }}</strong> |
+      <a href="{{ url_for('logout') }}">Log out</a>
+    </p>
     {% endif %}
   </div>
   <hr>

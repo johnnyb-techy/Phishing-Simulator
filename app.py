@@ -534,7 +534,7 @@ def otp():
 
     return render_template("otp.html", otp_code=session["otp_code"])
 
-@app.route("/logout", methods=["POST"])
+@app.route("/logout")
 def logout():
     session.clear()
     flash("You have been logged out.")
