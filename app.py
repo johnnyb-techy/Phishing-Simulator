@@ -658,12 +658,19 @@ def edit_user(user_id):
         conn.close()
         return "User not found", 404
 
+    # The login account linked to this user (logins are matched to users by email)
+    login = conn.execute(
+        'SELECT id, username FROM auth_user WHERE email = ?',
+        (edit_user["email"],)
+    ).fetchone()
+
     if request.method == 'POST':
         full_name = request.form.get('full_name')
         email = request.form.get('email')
         job_title = request.form.get('job_title')
         department_id = request.form.get('department_id')
         role = request.form.get('role')
+        new_password = request.form.get('new_password', '')  # blank keeps the current password
 
         if department_id == "":
             department_id = None
@@ -686,6 +693,26 @@ def edit_user(user_id):
                 user_id
             ))
 
+            if login:
+                # Keep the login's email in step so it stays linked to this user
+                conn.execute(
+                    'UPDATE auth_user SET email = ? WHERE id = ?',
+                    (email, login["id"])
+                )
+
+                if new_password:
+                    conn.execute(
+                        'UPDATE auth_user SET password_hash = ? WHERE id = ?',
+                        (generate_password_hash(new_password, method='pbkdf2:sha256'), login["id"])
+                    )
+
+            elif new_password:
+                # No login yet - create one; the user signs in with their email
+                conn.execute(
+                    'INSERT INTO auth_user (username, email, password_hash, otp_secret) VALUES (?, ?, ?, ?)',
+                    (email, email, generate_password_hash(new_password, method='pbkdf2:sha256'), 'unused')
+                )
+
             conn.commit()
 
         except sqlite3.IntegrityError:
@@ -693,6 +720,10 @@ def edit_user(user_id):
             return "That email is already being used by another user."
 
         conn.close()
+
+        if new_password:
+            flash(f"Password updated for {full_name}.")
+
         return redirect(url_for('users'))
 
     departments = conn.execute(
