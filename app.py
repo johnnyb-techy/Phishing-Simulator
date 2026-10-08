@@ -400,6 +400,47 @@ CREATE TABLE IF NOT EXISTS user (id INTEGER PRIMARY KEY AUTOINCREMENT, departmen
                 (4, 1, 'enrolled');
         ''')
 
+    # Give the built-in sample scenarios a training question if they don't have one yet
+    sample_questions = {
+        'Urgent Password Reset': (
+            'Multiple Choice',
+            'What should you do with this email?',
+            'Report it as phishing and delete it',
+            'Click the link to check whether it is genuine',
+            'Reply and ask the sender to confirm who they are',
+            'Forward it to your colleagues as a warning',
+            'A',
+            'This is a credential-harvesting attempt: an unknown external sender, an urgent '
+            '"ACTION REQUIRED" subject and a request to click a link. Never click links in '
+            'unexpected emails. Report it as phishing so the security team can block it, then delete it.'
+        ),
+        'CEO Wire Transfer': (
+            'Multiple Choice',
+            'What is the safest response to this request?',
+            'Process the transfer quickly, since the CEO asked for it before end of day',
+            'Reply to the email to ask for the vendor\'s bank details',
+            'Verify the request by calling the CEO on a known phone number, and report the email',
+            'Forward it to a finance colleague to deal with',
+            'C',
+            'This is business email compromise. The sender address (company-corp.net) is not the '
+            'company\'s real domain, and urgency, secrecy and a new payee are classic warning signs. '
+            'Always confirm payment requests through a separate, trusted channel, never by replying '
+            'to the email itself, and report the message.'
+        ),
+    }
+
+    for title, values in sample_questions.items():
+        conn.execute(
+            '''
+            UPDATE scenario
+            SET question_type = ?, question = ?,
+                option_a = ?, option_b = ?, option_c = ?, option_d = ?,
+                correct_answer = ?, explanation = ?
+            WHERE title = ? AND (question IS NULL OR question = '')
+            ''',
+            (*values, title)
+        )
+
     # Insert default login account
     if conn.execute('SELECT COUNT(*) FROM auth_user').fetchone()[0] == 0:
         conn.execute(
@@ -1761,6 +1802,32 @@ def delete_campaign(campaign_id):
 
     return redirect(url_for('campaigns'))
 
+# Find the trainee's next unanswered scenario in an active campaign
+# (limited to one campaign when campaign_id is given)
+def find_next_scenario(conn, trainee_id, campaign_id=None):
+    campaign_filter = 'AND uc.campaign_id = ?' if campaign_id is not None else ''
+    params = (trainee_id, campaign_id) if campaign_id is not None else (trainee_id,)
+
+    return conn.execute(f'''
+        SELECT s.*, cs.id AS campaign_scenario_id, uc.id AS user_campaign_id,
+               uc.campaign_id AS campaign_id
+        FROM user_campaign uc
+        JOIN campaign c ON c.id = uc.campaign_id
+        JOIN campaign_scenario cs ON cs.campaign_id = uc.campaign_id
+        JOIN scenario s ON s.id = cs.scenario_id
+        WHERE uc.user_id = ?
+          {campaign_filter}
+          AND c.status = 'active'
+          AND uc.status = 'enrolled'
+          AND cs.id NOT IN (
+              SELECT campaign_scenario_id
+              FROM user_response
+              WHERE user_campaign_id = uc.id
+          )
+        ORDER BY uc.campaign_id, cs.sequence_order
+        LIMIT 1
+    ''', params).fetchone()
+
 @app.route('/train', methods=['GET', 'POST'])
 @login_required
 def train():
@@ -1840,33 +1907,21 @@ def train():
             explanation=answer_row["explanation"]
         )
 
-     # If GET request: use the campaign the user deliberately selected
+    # If GET request: use the campaign the user selected on the Campaigns page, if any
     selected_campaign_id = session.get('training_campaign_id')
+    next_scenario = None
 
-    # If no campaign has been selected, send the user to the campaign list
-    if selected_campaign_id is None:
-        conn.close()
-        return redirect(url_for('campaigns'))
+    if selected_campaign_id is not None:
+        next_scenario = find_next_scenario(conn, trainee['id'], selected_campaign_id)
 
-    # Find the next unanswered scenario from the selected campaign only
-    next_scenario = conn.execute('''
-        SELECT s.*, cs.id AS campaign_scenario_id, uc.id AS user_campaign_id
-        FROM user_campaign uc
-        JOIN campaign c ON c.id = uc.campaign_id
-        JOIN campaign_scenario cs ON cs.campaign_id = uc.campaign_id
-        JOIN scenario s ON s.id = cs.scenario_id
-        WHERE uc.user_id = ?
-          AND uc.campaign_id = ?
-          AND c.status = 'active'
-          AND uc.status = 'enrolled'
-          AND cs.id NOT IN (
-              SELECT campaign_scenario_id
-              FROM user_response
-              WHERE user_campaign_id = uc.id
-          )
-        ORDER BY cs.sequence_order
-        LIMIT 1
-    ''', (trainee['id'], selected_campaign_id)).fetchone()
+    # Started from the dashboard, or the selected campaign is finished:
+    # carry on with the next active campaign that still has unanswered questions
+    if next_scenario is None:
+        next_scenario = find_next_scenario(conn, trainee['id'])
+
+        if next_scenario is not None:
+            session['training_campaign_id'] = next_scenario['campaign_id']
+
     conn.close()
 
     if next_scenario is None:
