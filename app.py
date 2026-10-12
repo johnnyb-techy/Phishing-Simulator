@@ -576,9 +576,19 @@ def logout():
 
 
 # --- DASHBOARD & PAGES ---
+@app.route('/welcome')
+def welcome():
+    # Front page shown before logging in
+    if "user" in session:
+        return redirect(url_for("index"))
+    return render_template('welcome.html')
+
 @app.route('/')
-@login_required
 def index():
+    # Visitors who aren't logged in start at the welcome page
+    if "user" not in session:
+        return redirect(url_for("welcome"))
+
     conn = get_db()
     
     # 1. Calculate raw response numbers
