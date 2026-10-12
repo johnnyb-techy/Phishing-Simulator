@@ -8,10 +8,10 @@
     <div style="width: 60%; margin: 30px auto; padding: 30px; background-color: #f4f4f4; border-radius: 8px;">
 
         {% if correct %}
-            <h2 style="color: #1D806F;">Correct!</h2>
+            <h2>Correct!</h2>
             <p>Great work. You selected the correct answer.</p>
         {% else %}
-            <h2 style="color: #CC4131;">Incorrect</h2>
+            <h2>Incorrect</h2>
             <p>
                 You selected <strong>{{ action }}</strong>.
                 The correct answer was <strong>{{ correct_answer }}</strong>.
@@ -27,14 +27,14 @@
 
         <div style="margin-top: 30px;">
             <a href="{{ url_for('train') }}">
-                <button style="padding: 12px 22px; font-size: 16px; background-color: #00BFA6; color: #0E141D; border: none; border-radius: 5px; cursor: pointer;">
+                <button style="padding: 12px 22px; font-size: 16px;">
                     Continue Training
                 </button>
             </a>
         </div>
 
         <div style="margin-top: 20px;">
-            <a href="{{ url_for('index') }}" style="color: #2F356B;">
+            <a href="{{ url_for('index') }}">
                 End Training
             </a>
         </div>

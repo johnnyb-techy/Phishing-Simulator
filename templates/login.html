@@ -1,3 +1,10 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Log in</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
 {% with messages = get_flashed_messages() %}
   {% for msg in messages %}
     <p><strong>{{ msg }}</strong></p>
@@ -9,3 +16,5 @@
   <button type="submit">Login</button>
 </form>
 <p><a href="{{ url_for('register') }}">Register</a></p>
+</body>
+</html>

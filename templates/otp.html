@@ -1,3 +1,10 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Two-Factor Authentication</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
 <h2>Two-Factor Authentication</h2>
 
 {% with messages = get_flashed_messages() %}
@@ -18,3 +25,5 @@
 
   <button type="submit">Verify</button>
 </form>
+</body>
+</html>
