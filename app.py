@@ -354,12 +354,8 @@ CREATE TABLE IF NOT EXISTS user (id INTEGER PRIMARY KEY AUTOINCREMENT, departmen
                 ('Engineering', 'Software development'),
                 ('HR', 'Human resources');
 
-            INSERT INTO user (department_id, email, full_name, role)
-            VALUES
-                (1, 'alice@company.com', 'Alice Johnson', 'admin'),
-                (1, 'bob@company.com', 'Bob Smith', 'learner'),
-                (2, 'carol@company.com', 'Carol White', 'learner'),
-                (2, 'joe@company.com', 'Joe (Admin)', 'admin');
+            INSERT INTO user (email, full_name, role)
+            VALUES ('admin@company.com', 'Administrator', 'admin');
 
             INSERT INTO scenario
                 (title, attack_type, difficulty, email_subject, email_body, sender_name, sender_email)
@@ -394,10 +390,7 @@ CREATE TABLE IF NOT EXISTS user (id INTEGER PRIMARY KEY AUTOINCREMENT, departmen
 
             INSERT INTO user_campaign
                 (user_id, campaign_id, status)
-            VALUES
-                (2, 1, 'enrolled'),
-                (3, 1, 'enrolled'),
-                (4, 1, 'enrolled');
+            VALUES (1, 1, 'enrolled');
         ''')
 
     # Give the built-in sample scenarios a training question if they don't have one yet
@@ -446,10 +439,10 @@ CREATE TABLE IF NOT EXISTS user (id INTEGER PRIMARY KEY AUTOINCREMENT, departmen
         conn.execute(
             'INSERT INTO auth_user (username, email, password_hash, otp_secret) VALUES (?, ?, ?, ?)',
             (
-                'joe',
-                'joe@company.com',
+                'admin',
+                'admin@company.com',
                 generate_password_hash(
-                    'password123',
+                    'password',
                     method='pbkdf2:sha256'
                 ),
                 'unused'
