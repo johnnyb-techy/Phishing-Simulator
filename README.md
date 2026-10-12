@@ -93,9 +93,11 @@ This is intended purely for internal security-awareness training, not for crafti
 
 Accounts live in the `auth_user` table and can log in with either their **username** or their **email**. You can either register a new account at `/register`, or use the seeded default account:
 
-- **Username:** `joe`
-- **Email:** `joe@company.com`
-- **Password:** `password123`
+- **Username:** `admin`
+- **Email:** `admin@company.com`
+- **Password:** `password`
+
+This account has administrator access. A fresh database contains only this employee, the Finance, Engineering and HR departments, two sample scenarios and the "Q3 Awareness Training" campaign.
 
 The app runs in `DEV_MODE = True` by default (see `app.py`), which enables a shortcut for local testing:
 

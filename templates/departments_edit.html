@@ -38,6 +38,26 @@
     </label>
     <br>
 {% endfor %}
+<label>
+    <input type="checkbox" id="select-all-study-areas">
+    <strong>Select all</strong>
+</label>
+
+<script>
+  // Tick or untick every study area at once, and keep "Select all" in sync with the individual boxes
+  const selectAll = document.getElementById('select-all-study-areas');
+  const areaBoxes = document.querySelectorAll('input[name="study_areas"]');
+
+  function updateSelectAll() {
+    selectAll.checked = areaBoxes.length > 0 && [...areaBoxes].every(box => box.checked);
+  }
+
+  selectAll.addEventListener('change', () => {
+    areaBoxes.forEach(box => { box.checked = selectAll.checked; });
+  });
+  areaBoxes.forEach(box => box.addEventListener('change', updateSelectAll));
+  updateSelectAll();
+</script>
   <p>
     <button type="submit">Save Changes</button>
     <a href="{{ url_for('departments') }}">Cancel</a>
