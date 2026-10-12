@@ -637,6 +637,7 @@ def new_user():
         job_title = request.form.get('job_title')
         department_id = request.form.get('department_id')
         role = request.form.get('role')
+        new_password = request.form.get('new_password', '')  # blank means no login yet
 
         if department_id == "":
             department_id = None
@@ -651,7 +652,17 @@ def new_user():
                 (full_name, email, job_title, department_id, role)
             )
 
+            if new_password:
+                # Create their login too; the user signs in with their email
+                conn.execute(
+                    'INSERT INTO auth_user (username, email, password_hash, otp_secret) VALUES (?, ?, ?, ?)',
+                    (email, email, generate_password_hash(new_password, method='pbkdf2:sha256'), 'unused')
+                )
+
             conn.commit()
+
+            if new_password:
+                flash(f"Password set for {full_name}.")
 
         except sqlite3.IntegrityError:
             print("Error: Email already exists!")
