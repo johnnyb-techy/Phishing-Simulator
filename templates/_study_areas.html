@@ -1,0 +1,37 @@
+{# Training Study Areas tickboxes with a Select all box, shared by the new and edit department pages #}
+<h3>Training Study Areas</h3>
+
+<p>Select the study areas that belong to this department:</p>
+
+{% for area in study_areas %}
+    <label>
+        <input
+            type="checkbox"
+            name="study_areas"
+            value="{{ area }}"
+            {% if area in selected_study_areas %}checked{% endif %}
+        >
+        {{ area }}
+    </label>
+    <br>
+{% endfor %}
+<label>
+    <input type="checkbox" id="select-all-study-areas">
+    <strong>Select all</strong>
+</label>
+
+<script>
+  // Tick or untick every study area at once, and keep "Select all" in sync with the individual boxes
+  const selectAll = document.getElementById('select-all-study-areas');
+  const areaBoxes = document.querySelectorAll('input[name="study_areas"]');
+
+  function updateSelectAll() {
+    selectAll.checked = areaBoxes.length > 0 && [...areaBoxes].every(box => box.checked);
+  }
+
+  selectAll.addEventListener('change', () => {
+    areaBoxes.forEach(box => { box.checked = selectAll.checked; });
+  });
+  areaBoxes.forEach(box => box.addEventListener('change', updateSelectAll));
+  updateSelectAll();
+</script>

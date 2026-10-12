@@ -5,9 +5,11 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
+<main class="card card-dark auth-card">
+<h1>Register</h1>
 {% with messages = get_flashed_messages() %}
   {% for msg in messages %}
-    <p><strong>{{ msg }}</strong></p>
+    <p class="flash">{{ msg }}</p>
   {% endfor %}
 {% endwith %}
 <form method="post">
@@ -17,5 +19,6 @@
   <button type="submit">Register</button>
 </form>
 <p><a href="{{ url_for('login') }}">Back to login</a></p>
+</main>
 </body>
 </html>

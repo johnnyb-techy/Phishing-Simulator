@@ -5,13 +5,13 @@
 <div style="text-align: center; margin-top: 50px;">
     <h1>Training Feedback</h1>
 
-    <div style="width: 60%; margin: 30px auto; padding: 30px; background-color: #f4f4f4; border-radius: 8px;">
+    <div class="card" style="width: 60%; margin: 30px auto;">
 
         {% if correct %}
-            <h2>Correct!</h2>
+            <h2 class="result-correct">Correct!</h2>
             <p>Great work. You selected the correct answer.</p>
         {% else %}
-            <h2>Incorrect</h2>
+            <h2 class="result-incorrect">Incorrect</h2>
             <p>
                 You selected <strong>{{ action }}</strong>.
                 The correct answer was <strong>{{ correct_answer }}</strong>.

@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}{{ title }}{% endblock %}
+{% block content %}
+<div class="card card-dark" style="max-width: 600px;">
+  <h2>{{ title }}</h2>
+  <p>{{ message }}</p>
+  <p>
+    {% for label, url in links %}
+      {% if loop.first %}
+        <a href="{{ url }}"><button type="button">{{ label }}</button></a>
+      {% else %}
+        <a href="{{ url }}" style="margin-left: 12px;">{{ label }}</a>
+      {% endif %}
+    {% endfor %}
+  </p>
+</div>
+{% endblock %}
