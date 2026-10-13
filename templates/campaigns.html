@@ -9,11 +9,11 @@
   <tr onclick="window.location.href='{{ url_for('campaign_detail', campaign_id=c.id) }}'" style="cursor: pointer;">
     <td>{{ c.name }}</td>
     <td>{{ c.status }}</td>
-    <td>{{ c.starts_at or '—' }}</td>
-    <td>{{ c.ends_at or '—' }}</td>
+    <td>{{ c.starts_at or '-' }}</td>
+    <td>{{ c.ends_at or '-' }}</td>
     <td>{{ c.scenario_count }}</td>
     <td>{{ c.enrolled_count }}</td>
-    <td>{{ '%.1f'|format(c.avg_score) if c.avg_score is not none else '—' }}</td>
+    <td>{{ '%.1f'|format(c.avg_score) if c.avg_score is not none else '-' }}</td>
   </tr>
   {% else %}
   <tr><td colspan="7">No campaigns yet.</td></tr>

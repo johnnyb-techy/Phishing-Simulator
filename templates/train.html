@@ -7,7 +7,7 @@
 
     {% if scenario %}
 
-    <div style="width: 60%; margin: 0 auto; background-color: #f4f4f4; padding: 30px; border: 1px solid #ccc; border-radius: 8px; text-align: left;">
+    <div class="card" style="width: 60%; margin: 0 auto; text-align: left;">
         <p><strong>From:</strong> {{ scenario.sender_name }} &lt;{{ scenario.sender_email }}&gt;</p>
         <p><strong>Subject:</strong> {{ scenario.email_subject }}</p>
         <hr>
@@ -24,25 +24,25 @@
             <input type="hidden" name="user_campaign_id" value="{{ scenario.user_campaign_id }}">
             <input type="hidden" name="campaign_scenario_id" value="{{ scenario.campaign_scenario_id }}">
 
-            <button type="submit" name="action" value="A">
+            <button type="submit" name="action" value="A" class="answer">
                 A. {{ scenario.option_a }}
             </button>
 
             <br><br>
 
-            <button type="submit" name="action" value="B">
+            <button type="submit" name="action" value="B" class="answer">
                 B. {{ scenario.option_b }}
             </button>
 
             <br><br>
 
-            <button type="submit" name="action" value="C">
+            <button type="submit" name="action" value="C" class="answer">
                 C. {{ scenario.option_c }}
             </button>
 
             <br><br>
 
-            <button type="submit" name="action" value="D">
+            <button type="submit" name="action" value="D" class="answer">
                 D. {{ scenario.option_d }}
             </button>
         </form>
@@ -51,6 +51,8 @@
     {% else %}
 
     <p>{{ message }}</p>
+
+    <a href="{{ url_for('index') }}"><button type="button">Back to Dashboard</button></a>
 
     {% endif %}
 </div>

@@ -255,6 +255,14 @@ def is_admin(conn):
 
     return current_user["role"] == "admin"
 
+# Themed message page for errors, used instead of a bare text reply.
+# links is a list of (label, url); the first one is shown as the back button.
+def message_page(title, message, links, status=400):
+    return render_template('message.html', title=title, message=message, links=links), status
+
+def access_denied(message="Admin privileges are required."):
+    return message_page("Access denied", message, [("Back to Dashboard", url_for('index'))], 403)
+
 # Redirect to the login page unless the user has completed login and OTP
 def login_required(view):
     @wraps(view)
@@ -571,7 +579,6 @@ def otp():
 @app.route("/logout")
 def logout():
     session.clear()
-    flash("You have been logged out.")
     return redirect(url_for("login"))
 
 
@@ -621,7 +628,7 @@ def users():
 
     if not is_admin(conn):
         conn.close()
-        return "Access denied. Admin privileges are required.", 403
+        return access_denied()
     
     
     rows = conn.execute('''
@@ -639,7 +646,7 @@ def new_user():
 
     if not is_admin(conn):
         conn.close()
-        return "Access denied. Admin privileges are required.", 403
+        return access_denied()
 
     if request.method == 'POST':
         full_name = request.form.get('full_name')
@@ -701,7 +708,7 @@ def edit_user(user_id):
     #Stops non Admins from Editing Users.
     if not is_admin(conn):
         conn.close()
-        return "Access denied. Admin privileges are required.", 403
+        return access_denied()
 
     # Find the user being edited
     edit_user = conn.execute(
@@ -711,7 +718,8 @@ def edit_user(user_id):
 
     if edit_user is None:
         conn.close()
-        return "User not found", 404
+        return message_page("User not found", "That user doesn't exist.",
+                            [("Back to Users", url_for('users'))], 404)
 
     # The login account linked to this user (logins are matched to users by email)
     login = conn.execute(
@@ -772,7 +780,8 @@ def edit_user(user_id):
 
         except sqlite3.IntegrityError:
             conn.close()
-            return "That email is already being used by another user."
+            return message_page("Can't save changes", "That email is already being used by another user.",
+                                [("Back to Edit User", url_for('edit_user', user_id=user_id))])
 
         conn.close()
 
@@ -802,7 +811,7 @@ def delete_user(user_id):
     # Deleting User Protection.
     if not is_admin(conn):
         conn.close()
-        return "Access denied. Admin privileges are required.", 403
+        return access_denied()
 
     # Delete training responses belonging to this user
     conn.execute('''
@@ -838,7 +847,7 @@ def departments():
 
     if not is_admin(conn):
         conn.close()
-        return "Access denied. Admin privileges are required.", 403
+        return access_denied()
 
     rows = conn.execute(
         'SELECT * FROM department ORDER BY name'
@@ -860,33 +869,49 @@ def new_department():
     # Only admins can create departments
     if not is_admin(conn):
         conn.close()
-        return "Access denied. Admin privileges are required.", 403
+        return access_denied()
 
     if request.method == 'POST':
         name = request.form.get('name')
         description = request.form.get('description')
+        selected_study_areas = request.form.getlist('study_areas')
 
         try:
-            conn.execute(
+            department_id = conn.execute(
                 '''
                 INSERT INTO department (name, description)
                 VALUES (?, ?)
                 ''',
                 (name, description)
-            )
+            ).lastrowid
+
+            # Save the selected study areas
+            for study_area in selected_study_areas:
+                conn.execute(
+                    '''
+                    INSERT INTO department_study_area (department_id, study_area)
+                    VALUES (?, ?)
+                    ''',
+                    (department_id, study_area)
+                )
 
             conn.commit()
 
         except sqlite3.IntegrityError:
             conn.close()
-            return "That department already exists."
+            return message_page("Can't create department", "That department already exists.",
+                                [("Back to New Department", url_for('new_department'))])
 
         conn.close()
         return redirect(url_for('departments'))
 
     conn.close()
 
-    return render_template('departments_form.html')
+    return render_template(
+        'departments_form.html',
+        study_areas=STUDY_AREAS,
+        selected_study_areas=[]
+    )
 
 # Edit an existing department
 @app.route('/departments/<int:department_id>/edit', methods=['GET', 'POST'])
@@ -897,7 +922,7 @@ def edit_department(department_id):
     # Only admins can edit departments
     if not is_admin(conn):
         conn.close()
-        return "Access denied. Admin privileges are required.", 403
+        return access_denied()
 
     department = conn.execute(
         'SELECT * FROM department WHERE id = ?',
@@ -906,7 +931,8 @@ def edit_department(department_id):
 
     if department is None:
         conn.close()
-        return "Department not found", 404
+        return message_page("Department not found", "That department doesn't exist.",
+                            [("Back to Departments", url_for('departments'))], 404)
 
     if request.method == 'POST':
         name = request.form.get('name')
@@ -943,7 +969,8 @@ def edit_department(department_id):
 
         except sqlite3.IntegrityError:
             conn.close()
-            return "That department name is already being used."
+            return message_page("Can't save changes", "That department name is already being used.",
+                                [("Back to Edit Department", url_for('edit_department', department_id=department_id))])
 
         conn.close()
         return redirect(url_for('departments'))
@@ -979,7 +1006,7 @@ def delete_department(department_id):
     # Only admins can delete departments
     if not is_admin(conn):
         conn.close()
-        return "Access denied. Admin privileges are required.", 403
+        return access_denied()
 
     department = conn.execute(
         'SELECT * FROM department WHERE id = ?',
@@ -988,7 +1015,8 @@ def delete_department(department_id):
 
     if department is None:
         conn.close()
-        return "Department not found", 404
+        return message_page("Department not found", "That department doesn't exist.",
+                            [("Back to Departments", url_for('departments'))], 404)
 
     # Check whether any users still belong to this department
     user_count = conn.execute(
@@ -998,7 +1026,9 @@ def delete_department(department_id):
 
     if user_count > 0:
         conn.close()
-        return "This department cannot be deleted because users are still assigned to it.", 400
+        return message_page("Can't delete department",
+                            "This department cannot be deleted because users are still assigned to it.",
+                            [("Back to Departments", url_for('departments'))])
 
     conn.execute(
         'DELETE FROM department WHERE id = ?',
@@ -1018,7 +1048,7 @@ def scenarios():
     # Only admins can manage and generate scenarios
     if not is_admin(conn):
         conn.close()
-        return "Access denied. Admin privileges are required.", 403
+        return access_denied()
     
     generated_email = None
 
@@ -1051,7 +1081,8 @@ def scenarios():
 
         if user_count == 0:
             conn.close()
-            return "No users are assigned to this department.", 400
+            return message_page("Can't generate a scenario", "No users are assigned to this department.",
+                                [("Back to Scenarios", url_for('scenarios'))])
 
         # Get the study areas linked to the selected department
         department_study_areas = [
@@ -1069,7 +1100,10 @@ def scenarios():
         # Make sure the department has training areas configured
         if not department_study_areas:
             conn.close()
-            return "This department has no training study areas assigned.", 400
+            return message_page("Can't generate a scenario", "This department has no training study areas assigned.", [
+                ("Back to Scenarios", url_for('scenarios')),
+                ("Assign study areas to this department", url_for('edit_department', department_id=department_id))
+            ])
 
         # Generate using only this department's study areas
         parameters = generate_parameters(department_study_areas)
@@ -1321,7 +1355,7 @@ def new_campaign():
     # Only admins can create campaigns
     if not is_admin(conn):
         conn.close()
-        return "Access denied. Admin privileges are required.", 403
+        return access_denied()
     
     # Only show departments that have users assigned
     departments = conn.execute('''
@@ -1350,7 +1384,8 @@ def new_campaign():
 
         if user_count == 0:
             conn.close()
-            return "No users are assigned to this department.", 400
+            return message_page("Can't create campaign", "No users are assigned to this department.",
+                                [("Back to New Campaign", url_for('new_campaign'))])
        # New campaigns always begin as a draft
         status = 'draft'
         starts_at = request.form.get('starts_at') or None
@@ -1404,7 +1439,8 @@ def campaign_detail(campaign_id):
     # Make sure the logged-in account is linked to a user
     if current_user is None:
         conn.close()
-        return "User profile not found.", 404
+        return message_page("Profile not found", "Your login isn't linked to a user profile.",
+                            [("Back to Dashboard", url_for('index'))], 404)
 
     # Learners can only view campaigns they are enrolled in
     if not is_admin(conn):
@@ -1420,7 +1456,7 @@ def campaign_detail(campaign_id):
 
         if enrolled is None:
             conn.close()
-            return "Access denied. You are not enrolled in this campaign.", 403
+            return access_denied("You are not enrolled in this campaign.")
 
     # Get the campaign and the name of its target department
     campaign = conn.execute('''
@@ -1433,7 +1469,8 @@ def campaign_detail(campaign_id):
     # Stop here if the campaign no longer exists
     if campaign is None:
         conn.close()
-        return "Campaign not found", 404
+        return message_page("Campaign not found", "That campaign doesn't exist.",
+                            [("Back to Campaigns", url_for('campaigns'))], 404)
     
 
     scenarios = conn.execute('''
@@ -1490,7 +1527,7 @@ def enroll_campaign(campaign_id):
     # Only admins can manually enrol users
     if not is_admin(conn):
         conn.close()
-        return "Access denied. Admin privileges are required.", 403
+        return access_denied()
 
     conn.close()
     
@@ -1516,7 +1553,8 @@ def enroll_campaign(campaign_id):
             or campaign["department_id"] != selected_user["department_id"]
         ):
             conn.close()
-            return "This user does not belong to the campaign's target department.", 400
+            return message_page("Can't enroll user", "This user does not belong to the campaign's target department.",
+                                [("Back to Campaign", url_for('campaign_detail', campaign_id=campaign_id))])
 
         existing = conn.execute(
             '''
@@ -1590,7 +1628,7 @@ def retry_campaign_training(campaign_id):
 
     if enrollment is None:
         conn.close()
-        return "You are not enrolled in this campaign.", 403
+        return access_denied("You are not enrolled in this campaign.")
 
     user_campaign_id = enrollment["id"]
 
@@ -1629,7 +1667,7 @@ def update_campaign_status(campaign_id):
     # Only admins can change campaign status
     if not is_admin(conn):
         conn.close()
-        return "Access denied. Admin privileges are required.", 403
+        return access_denied()
 
     conn.close()
 
@@ -1656,7 +1694,8 @@ def update_campaign_status(campaign_id):
         # Campaign must have a target department
         if campaign is None or campaign["department_id"] is None:
             conn.close()
-            return "This campaign does not have a target department.", 400
+            return message_page("Can't change status", "This campaign does not have a target department.",
+                                [("Back to Campaign", url_for('campaign_detail', campaign_id=campaign_id))])
 
         # Make sure the target department still has users
         user_count = conn.execute(
@@ -1670,7 +1709,8 @@ def update_campaign_status(campaign_id):
 
         if user_count == 0:
             conn.close()
-            return "This campaign cannot be activated because its department has no users.", 400
+            return message_page("Can't change status", "This campaign cannot be activated because its department has no users.",
+                                [("Back to Campaign", url_for('campaign_detail', campaign_id=campaign_id))])
             # Enrol all users from the target department
         conn.execute(
             '''
@@ -1712,7 +1752,7 @@ def delete_scenario(scenario_id):
     # Only admins can permanently delete scenarios
     if not is_admin(conn):
         conn.close()
-        return "Access denied. Admin privileges are required.", 403
+        return access_denied()
 
     # Delete responses connected to this scenario through campaigns
     conn.execute('''
@@ -1750,7 +1790,7 @@ def remove_campaign_scenario(campaign_id, scenario_id):
     # Only admins can remove scenarios from campaigns
     if not is_admin(conn):
         conn.close()
-        return "Access denied. Admin privileges are required.", 403
+        return access_denied()
 
     # Remove only the connection between this campaign and scenario
     conn.execute('''
@@ -1772,7 +1812,7 @@ def delete_campaign(campaign_id):
     # Only admins can delete campaigns
     if not is_admin(conn):
         conn.close()
-        return "Access denied. Admin privileges are required.", 403
+        return access_denied()
 
     # Delete responses connected to this campaign
     conn.execute('''
@@ -1941,10 +1981,26 @@ def train():
     if next_scenario is None:
         return render_template(
             'train.html', scenario=None,
-            message="No active training assigned right now — check back once you're enrolled in a campaign."
+            message="No active training assigned right now, check back once you're enrolled in a campaign."
         )
 
     return render_template('train.html', scenario=next_scenario, message=None)
+
+# Themed versions of Flask's built-in error pages
+@app.errorhandler(404)
+def page_not_found(error):
+    return message_page("Page not found", "The page you're looking for doesn't exist.",
+                        [("Back to Dashboard", url_for('index'))], 404)
+
+@app.errorhandler(405)
+def method_not_allowed(error):
+    return message_page("Something went wrong", "That action isn't allowed here.",
+                        [("Back to Dashboard", url_for('index'))], 405)
+
+@app.errorhandler(500)
+def server_error(error):
+    return message_page("Something went wrong", "An unexpected error occurred. Please try again.",
+                        [("Back to Dashboard", url_for('index'))], 500)
 
 if __name__ == '__main__':
     app.run(debug=True)

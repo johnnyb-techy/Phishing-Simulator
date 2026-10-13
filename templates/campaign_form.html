@@ -27,7 +27,7 @@
       {{ s.title }} ({{ s.attack_type }})
     </label><br>
   {% else %}
-    <p>No scenarios yet — <a href="{{ url_for('scenarios') }}">create one first</a>.</p>
+    <p>No scenarios yet, <a href="{{ url_for('scenarios') }}">create one first</a>.</p>
   {% endfor %}
 
   <br>

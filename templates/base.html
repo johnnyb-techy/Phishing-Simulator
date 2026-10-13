@@ -2,31 +2,33 @@
 <html>
 <head>
   <title>{% block title %}PhishGuard{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-  <div style="display: flex; justify-content: space-between; align-items: center; gap: 15px; flex-wrap: wrap;">
-    <p style="margin: 0;">
+  <nav class="site-nav">
+    <p>
       <a href="{{ url_for('index') }}">Dashboard</a> |
-      <a href="{{ url_for('campaigns') }}">Campaigns</a>
       {% if current_is_admin %}
-      | <a href="{{ url_for('scenarios') }}">Scenarios</a>
-      | <a href="{{ url_for('users') }}">Users</a>
-      | <a href="{{ url_for('departments') }}">Departments</a>
+      <a href="{{ url_for('departments') }}">Departments</a> |
+      <a href="{{ url_for('users') }}">Users</a> |
+      <a href="{{ url_for('scenarios') }}">Scenarios</a> |
       {% endif %}
+      <a href="{{ url_for('campaigns') }}">Campaigns</a>
     </p>
     {% if current_user %}
-    <p style="margin: 0; margin-left: auto;">
+    <p>
       Logged in as <strong>{{ current_user }}</strong> |
       <a href="{{ url_for('logout') }}">Log out</a>
     </p>
     {% endif %}
-  </div>
-  <hr>
+  </nav>
+  <main>
   {% with messages = get_flashed_messages() %}
     {% for msg in messages %}
-      <p><strong>{{ msg }}</strong></p>
+      <p class="flash">{{ msg }}</p>
     {% endfor %}
   {% endwith %}
   {% block content %}{% endblock %}
+  </main>
 </body>
 </html>
